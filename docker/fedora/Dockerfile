@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2016, ROE (http://www.roe.ac.uk/)
+# Copyright (c) 2018, ROE (http://www.roe.ac.uk/)
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -15,26 +15,26 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#Fedora 26 2017-07-20
-#FROM fedora@sha256:b27b4c551b1d06be25a3c76c1a9ceefd7ff189f6f8b1711d3e4b230c2081bff3
-#Fedora 26 2017-10-25
-FROM fedora@sha256:613830d906f8897c05fd737aea8c7c00e4ecb5a518eedf71958c2c110532957c
-MAINTAINER Dave Morris <docker-admin@metagrid.co.uk>
+# FROM fedora:27
+# https://github.com/docker-library/repo-info/blob/master/repos/fedora/tag-details.md#fedora27
+FROM fedora@sha256:25f7dac76b2c88d8b7e0b1d6213d3406e77c7f230bfa1e66bd1cbb81a944eaaf
+MAINTAINER [Dave Morris <docker-admin@metagrid.co.uk>]
 
 #
-# Declare the system cache as a volume.
-VOLUME /var/cache/
+# Mount the system cache as a volume.
+# TODO - check for side effects ? 
+# VOLUME /var/cache
 
 #
-# Clean and update the yum cache
-RUN dnf clean all
-RUN dnf makecache
+# Update the repo data.
+RUN dnf -y makecache
 
 #
 # Install common admin tools.
 RUN dnf install -y sed
 RUN dnf install -y tar
 RUN dnf install -y zip
+RUN dnf install -y less
 RUN dnf install -y wget
 RUN dnf install -y nano
 RUN dnf install -y gzip
@@ -47,17 +47,13 @@ RUN dnf install -y which
 RUN dnf install -y dnf-plugins-core
 
 #
-# Set the terminal type for exec.
-# https://github.com/docker/docker/issues/9299
-ENV TERM xterm
-
-#
 # Add our install scripts. 
 COPY bin /usr/local/bin/
 RUN chmod a+x /usr/local/bin/*.sh
 
 #
 # Run our install scripts.
-RUN /usr/local/bin/install-locale.sh
 RUN /usr/local/bin/install-gosu.sh
+RUN /usr/local/bin/install-locale.sh
+
 

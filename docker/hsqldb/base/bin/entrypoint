@@ -57,6 +57,7 @@ fi
 : ${adminpass:=$(pwgen 10 1)}
 
 : ${serveruser:=hsqldb}
+: ${servertype:=file}
 : ${serverdata:=/var/lib/hsqldb}
 : ${serverport:=9001}
 : ${serveripv4:=0.0.0.0}
@@ -75,6 +76,7 @@ fi
 cat > "${databasesave}" << EOF
 #
 # System settings
+servertype=${servertype}
 serveruser=${serveruser}
 serverdata=${serverdata}
 serverport=${serverport}
@@ -111,24 +113,58 @@ then
     fi
 
     #
-    # Check the database directory.
-    echo "Checking database directory [${serverdata}]"
-    if [ ! -e "${serverdata:?}" ]
-    then
-        echo "Creating database directory [${serverdata}]"
-        mkdir -p "${serverdata:?}"
-    fi
+    # Check the database storage.
+    echo "Checking database type [${servertype}]"
+    case "${servertype}" in
 
-    echo "Updating database directory [${serverdata}]"
-    chown -R "${serveruser}" "${serverdata}"
-    chgrp -R "${serveruser}" "${serverdata}"
-    chmod 'u=rwx,g=,o=' "${serverdata}"
+        #
+        # In memory database
+        mem)
+            serverjdbc="${servertype}:${databasename}"
+            echo "In memory database [${serverjdbc}]"
+            ;;
+
+        #
+        # File based database
+        file)
+            serverjdbc="${servertype}:${serverdata}/${databasename}"
+            echo "Filesystem database [${serverjdbc}]"
+
+            #
+            # Check the database directory.
+            echo "Checking database directory [${serverdata}]"
+            if [ ! -e "${serverdata:?}" ]
+            then
+                echo "Creating database directory [${serverdata}]"
+                mkdir -p "${serverdata:?}"
+            fi
+
+            echo "Updating database directory [${serverdata}]"
+            chown -R "${serveruser}" "${serverdata}"
+            chgrp -R "${serveruser}" "${serverdata}"
+            chmod 'u=rwx,g=,o=' "${serverdata}"
+            
+            ;;
+
+
+        #
+        # Unknown
+        *)
+            serverjdbc="${servertype}"
+            echo "Unknown database type [${serverjdbc}]"
+            ;;
+
+    esac
+
+
+if [ 'file' == "${servertype}" ]
+then
 
     #
     # Create our client properties file.
     cat > ${serverdata}/sqltool.rc << EOF
 urlid ${databasename}
-url jdbc:hsqldb:file:${serverdata}/${databasename};shutdown=true
+url jdbc:hsqldb:hsql:${serverjdbc};shutdown=true
 username ${databaseuser}
 password ${databasepass}
 transiso TRANSACTION_READ_COMMITTED
@@ -181,6 +217,8 @@ EOF
     echo "Initialization process complete."
     echo ""
 
+fi
+
     #
     # Create our client properties file.
     cat > /root/sqltool.rc << EOF
@@ -190,6 +228,7 @@ username ${databaseuser}
 password ${databasepass}
 transiso TRANSACTION_READ_COMMITTED
 EOF
+
     chown root:root  /root/sqltool.rc
     chmod u=rw,g=,o= /root/sqltool.rc
 
@@ -198,7 +237,7 @@ EOF
     cat > ${serverdata}/server.properties << EOF
 server.port=${serverport}
 server.address=${serveripv4}
-server.database.0=${serverdata}/${databasename}
+server.database.0=${serverjdbc};user=${databaseuser};password=${databasepass}
 server.dbname.0=${databasename}
 EOF
 

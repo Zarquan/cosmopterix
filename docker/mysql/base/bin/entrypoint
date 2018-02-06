@@ -133,19 +133,20 @@ then
         #
         # Initialise our database.
         echo "Creating database data [${admindata}]"
-        gosu mysql mysql_install_db \
+        gosu mysql \
+            /usr/libexec/mysqld \
+            --initialize \
             --user="${serveruser}" \
-            --datadir="${serverdata}" \
-            --skip-name-resolve
+            --datadir="${serverdata}"
 
         #
         # Run a local instance.
         echo "Running local instance"
-        mysqld_safe \
+        gosu mysql \
+            /usr/libexec/mysqld \
             --user="${serveruser}" \
             --socket="${serversock}" \
             --skip_networking \
-            --skip-name-resolve \
             --datadir="${serverdata}" \
             &
 
@@ -305,7 +306,7 @@ EOF
     echo "Starting database service"
     echo "OKGO"
     exec \
-        mysqld_safe \
+        /usr/libexec/mysqld \
             --user="${serveruser}" \
             --datadir="${serverdata}"
 

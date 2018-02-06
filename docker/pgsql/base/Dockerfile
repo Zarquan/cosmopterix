@@ -15,12 +15,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-FROM cosmopterix/fedora:26-1.2
+FROM cosmopterix/fedora:20180206
 MAINTAINER Dave Morris <docker-admin@metagrid.co.uk>
 
 #
 # PostgreSQL version
-ENV pgsqlversion=9.6.5
+ENV pgsqlversion=9.6.6
 
 #
 # Default port number.

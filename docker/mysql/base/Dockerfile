@@ -15,12 +15,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-FROM cosmopterix/fedora:23-1.1
+FROM cosmopterix/fedora:20180206
 MAINTAINER Dave Morris <docker-admin@metagrid.co.uk>
 
 #
 # MySQL version
-ENV mysqlversion 5.6.33
+ENV mysqlversion 5.7.20
 
 #
 # Default port number.

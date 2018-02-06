@@ -1,0 +1,635 @@
+#
+# <meta:header>
+#   <meta:licence>
+#     Copyright (c) 2018, ROE (http://www.roe.ac.uk/)
+#
+#     This information is free software: you can redistribute it and/or modify
+#     it under the terms of the GNU General Public License as published by
+#     the Free Software Foundation, either version 3 of the License, or
+#     (at your option) any later version.
+#
+#     This information is distributed in the hope that it will be useful,
+#     but WITHOUT ANY WARRANTY; without even the implied warranty of
+#     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#     GNU General Public License for more details.
+#  
+#     You should have received a copy of the GNU General Public License
+#     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#   </meta:licence>
+# </meta:header>
+#
+#
+
+# -----------------------------------------------------
+# Create our local settings.
+#[user@desktop]
+
+    if [ ! -e "${HOME:?}/cosmopterix.settings" ]
+    then
+        cat > "${HOME:?}/cosmopterix.settings" << EOF
+COSMOPTERIX_HOME=${HOME:?}/cosmopterix
+COSMOPTERIX_CODE=\${COSMOPTERIX_HOME:?}/github
+EOF
+    fi
+
+# -----------------------------------------------------
+# Remove existing containers and images.
+#[user@desktop]
+
+    docker rm -v $(docker stop $(docker ps -aq))
+
+    docker rmi -f $(docker images -q)
+
+# -------------------------------------------------------------------------------------------
+# Create our 'waitlog' function.
+#[user@desktop]
+
+    waitlog()
+        {
+        local name=${1:?Name required}
+        local text=${2:?Text required}
+        sed -r '/'${text}'/q' <( exec docker logs --follow "${name}" ); kill $! 2> /dev/null
+        }
+
+# -----------------------------------------------------
+# Update our Fedora image.
+#[user@laptop]
+
+    buildtag=20180206
+
+    source "${HOME:?}/cosmopterix.settings"
+    pushd "${COSMOPTERIX_CODE:?}"
+
+        pushd docker
+            docker build \
+                --tag "cosmopterix/fedora:latest" \
+                --tag "cosmopterix/fedora:${buildtag:?}" \
+                fedora
+
+        popd
+    popd
+
+# -----------------------------------------------------
+# Update our PostgreSQL images.
+#[user@desktop]
+
+    source "${HOME:?}/cosmopterix.settings"
+    pushd "${COSMOPTERIX_CODE:?}"
+
+        pushd docker
+
+            docker build \
+                --tag "cosmopterix/pgsql:latest" \
+                --tag "cosmopterix/pgsql:${buildtag:?}" \
+                --tag "cosmopterix/pgsql-base:latest" \
+                --tag "cosmopterix/pgsql-base:${buildtag:?}" \
+                pgsql/base
+
+            docker build \
+                --tag "cosmopterix/pgsql-test:latest" \
+                --tag "cosmopterix/pgsql-test:${buildtag:?}" \
+                pgsql/test
+
+        popd
+    popd
+
+# -------------------------------------------------------------------------------------------
+# Test our PostgreSQL container.
+#[user@desktop]
+
+    docker run \
+        --detach \
+        --name 'pgsql' \
+       "cosmopterix/pgsql-test:${buildtag:?}"
+
+    waitlog 'pgsql' 'OKGO'
+
+    docker exec \
+        --tty \
+        --interactive \
+        'pgsql' \
+        'pgsql-client'
+
+        SELECT version() ;
+
+            PostgreSQL 9.6.6 on x86_64-redhat-linux-gnu, compiled by gcc (GCC) 7.2.1 20170915 (Red Hat 7.2.1-2), 64-bit
+
+        SELECT
+            id,
+            random()
+        FROM
+            alpha_source            
+        ORDER BY
+            id
+        LIMIT
+            4
+            ;
+
+             id |      random       
+            ----+-------------------
+              1 | 0.601305630523711
+              2 | 0.433082926552743
+              3 | 0.244578152894974
+              4 | 0.897240059450269
+
+        SELECT
+            id,
+            setseed(0.2),
+            random()
+        FROM
+            alpha_source            
+        ORDER BY
+            id
+        LIMIT
+            4
+            ;
+
+             id | setseed |      random       
+            ----+---------+-------------------
+              1 |         | 0.836311135906726
+              2 |         | 0.836311135906726
+              3 |         | 0.836311135906726
+              4 |         | 0.836311135906726
+        
+        SELECT
+            id * 0.1,
+            setseed(id * 0.1),
+            random()
+        FROM
+            alpha_source            
+        ORDER BY
+            id
+        LIMIT
+            4
+            ;
+
+             ?column? | setseed |      random       
+            ----------+---------+-------------------
+                  0.1 |         | 0.727818949148059
+                  0.2 |         | 0.836311135906726
+                  0.3 |         | 0.939957889728248
+                  0.4 |         | 0.687135810498148
+
+        SELECT
+            (id % 2) * 0.1,
+            setseed((id % 2) * 0.1),
+            random()
+        FROM
+            alpha_source            
+        ORDER BY
+            id
+        LIMIT
+            4
+            ;
+
+             ?column? | setseed |      random       
+            ----------+---------+-------------------
+                  0.1 |         | 0.727818949148059
+                  0.0 |         | 0.840187716763467
+                  0.1 |         | 0.727818949148059
+                  0.0 |         | 0.840187716763467
+
+# -----------------------------------------------------
+# Update our MySQL images.
+#[user@desktop]
+
+    source "${HOME:?}/cosmopterix.settings"
+    pushd "${COSMOPTERIX_CODE:?}"
+
+        pushd docker
+
+            docker build \
+                --tag "cosmopterix/mysql:latest" \
+                --tag "cosmopterix/mysql:20180206" \
+                --tag "cosmopterix/mysql-base:latest" \
+                --tag "cosmopterix/mysql-base:20180206" \
+                mysql/base
+
+            docker build \
+                --tag "cosmopterix/mysql-test:latest" \
+                --tag "cosmopterix/mysql-test:20180206" \
+                mysql/test
+
+        popd
+    popd
+
+
+# -------------------------------------------------------------------------------------------
+# Test our MySQL container.
+#[user@desktop]
+
+    docker run \
+        --detach \
+        --name 'mysql' \
+       "cosmopterix/mysql-test:${buildtag:?}"
+
+    waitlog 'mysql' 'OKGO'
+
+    docker exec \
+        --tty \
+        --interactive \
+        'mysql' \
+        'mysql-client'
+
+
+
+    #
+    # Still fails.
+    # Configuring admin account [root]
+    # ERROR 1045 (28000): Access denied for user 'root'@'localhost' (using password: NO)
+    #
+    
+    #
+    # Probable cause
+    # https://planet.mysql.com/entry/?id=5989901
+    #
+
+# -----------------------------------------------------
+# Update our Mariadb images.
+#[user@desktop]
+
+    source "${HOME:?}/cosmopterix.settings"
+    pushd "${COSMOPTERIX_CODE:?}"
+
+        pushd docker
+
+            docker build \
+                --tag "cosmopterix/mariadb:latest" \
+                --tag "cosmopterix/mariadb:20180206" \
+                --tag "cosmopterix/mariadb-base:latest" \
+                --tag "cosmopterix/mariadb-base:20180206" \
+                mariadb/base
+
+            docker build \
+                --tag "cosmopterix/mariadb-test:latest" \
+                --tag "cosmopterix/mariadb-test:20180206" \
+                mariadb/test
+
+        popd
+    popd
+
+# -------------------------------------------------------------------------------------------
+# Test our Mariadb container.
+#[user@desktop]
+
+    docker run \
+        --detach \
+        --name 'mariadb' \
+       'cosmopterix/mariadb-test:20180206'
+
+    waitlog 'mariadb' 'OKGO'
+
+    docker exec \
+        --tty \
+        --interactive \
+        'mariadb' \
+        'mariadb-client'
+
+        SELECT
+            version()
+            ;
+
+            +-----------------+
+            | version()       |
+            +-----------------+
+            | 10.2.12-MariaDB |
+            +-----------------+
+
+        SELECT
+            id,
+            rand()
+        FROM
+            alpha_source            
+        ORDER BY
+            id
+        LIMIT
+            4
+            ;
+
+            +----+--------------------+
+            | id | rand()             |
+            +----+--------------------+
+            |  1 | 0.3638790076262122 |
+            |  2 | 0.8170173967415629 |
+            |  3 | 0.9934499915628229 |
+            |  4 | 0.5161977983230704 |
+            +----+--------------------+
+
+        SELECT
+            id,
+            rand(2)
+        FROM
+            alpha_source            
+        ORDER BY
+            id
+        LIMIT
+            4
+            ;
+
+            +----+---------------------+
+            | id | rand(2)             |
+            +----+---------------------+
+            |  1 |  0.6555866465490187 |
+            |  2 | 0.12234661925802624 |
+            |  3 |    0.64497318737672 |
+            |  4 |  0.8578261098431667 |
+            +----+---------------------+
+        
+        SELECT
+            id,
+            rand(id)
+        FROM
+            alpha_source            
+        ORDER BY
+            id
+        LIMIT
+            4
+            ;
+
+            +----+---------------------+
+            | id | rand(id)            |
+            +----+---------------------+
+            |  1 | 0.40540353712197724 |
+            |  2 |  0.6555866465490187 |
+            |  3 |  0.9057697559760601 |
+            |  4 | 0.15595286540310166 |
+            +----+---------------------+
+
+        SELECT
+            id % 2,
+            rand(id % 2)
+        FROM
+            alpha_source            
+        ORDER BY
+            id
+        LIMIT
+            4
+            ;
+
+            +--------+---------------------+
+            | id % 2 | rand(id % 2)        |
+            +--------+---------------------+
+            |      1 | 0.40540353712197724 |
+            |      0 | 0.15522042769493574 |
+            |      1 | 0.40540353712197724 |
+            |      0 | 0.15522042769493574 |
+            +--------+---------------------+
+
+# -----------------------------------------------------
+# Update our Derby images.
+#[user@virtual]
+
+    source "${HOME:?}/cosmopterix.settings"
+    pushd "${COSMOPTERIX_CODE:?}"
+
+        pushd docker
+
+            docker build \
+                --tag "cosmopterix/java:latest" \
+                --tag "cosmopterix/java:20180206" \
+                java
+
+            docker build \
+                --tag "cosmopterix/derby:latest" \
+                --tag "cosmopterix/derby:20180206" \
+                --tag "cosmopterix/derby-base:latest" \
+                --tag "cosmopterix/derby-base:20180206" \
+                derby/base
+
+            docker build \
+                --tag "cosmopterix/derby-test:latest" \
+                --tag "cosmopterix/derby-test:20180206" \
+                derby/test
+
+        popd
+    popd
+
+# -------------------------------------------------------------------------------------------
+# Test our Derby container.
+#[user@virtual]
+
+    docker run \
+        --detach \
+        --name 'derby' \
+       'cosmopterix/derby-test:20180206'
+
+    waitlog 'derby' 'OKGO'
+
+    docker exec \
+        --tty \
+        --interactive \
+        'derby' \
+        'derby-client'
+
+
+        SELECT
+            id,
+            random()
+        FROM
+            alpha_source            
+        ORDER BY
+            id
+        FETCH FIRST
+            4
+        ROWS ONLY
+            ;
+
+            ------------------------------------
+            1          |0.9635556410929079      
+            2          |0.8178823097664045      
+            3          |0.9712503399435956      
+            4          |0.45863690322953377     
+
+        SELECT
+            id,
+            rand(2)
+        FROM
+            alpha_source            
+        ORDER BY
+            id
+        FETCH FIRST
+            4
+        ROWS ONLY
+            ;
+                    
+            ------------------------------------
+            1          |0.7311469360199058      
+            2          |0.7311469360199058      
+            3          |0.7311469360199058      
+            4          |0.7311469360199058      
+
+        SELECT
+            id,
+            rand(id)
+        FROM
+            alpha_source            
+        ORDER BY
+            id
+        FETCH FIRST
+            4
+        ROWS ONLY
+            ;
+                    
+            ------------------------------------
+            1          |0.7308781907032909      
+            2          |0.7311469360199058      
+            3          |0.731057369148862       
+            4          |0.7306094602878371      
+
+        SELECT
+            MOD(id,2),
+            rand(MOD(id,2))
+        FROM
+            alpha_source            
+        ORDER BY
+            id
+        FETCH FIRST
+            4
+        ROWS ONLY
+            ;
+                     
+            ------------------------------------
+            1          |0.7308781907032909      
+            0          |0.730967787376657       
+            1          |0.7308781907032909      
+            0          |0.730967787376657       
+
+
+# -----------------------------------------------------
+# Update our HSQLDB images.
+#[user@virtual]
+
+    source "${HOME:?}/cosmopterix.settings"
+    pushd "${COSMOPTERIX_CODE:?}"
+
+        pushd docker
+
+            docker build \
+                --tag "cosmopterix/hsqldb:latest" \
+                --tag "cosmopterix/hsqldb-base:20180206" \
+                --tag "cosmopterix/hsqldb-base:latest" \
+                --tag "cosmopterix/hsqldb-base:20180206" \
+                hsqldb/base
+
+            docker build \
+                --tag "cosmopterix/hsqldb-test:latest" \
+                --tag "cosmopterix/hsqldb-test:20180206" \
+                hsqldb/test
+
+        popd
+    popd
+
+
+# -------------------------------------------------------------------------------------------
+# Test our HSQLDB in-memory database.
+#[user@virtual]
+
+    docker rm -f hsqldb
+
+    reset
+    
+    docker run \
+        --detach \
+        --name 'hsqldb' \
+        --env 'servertype=mem' \
+       'cosmopterix/hsqldb-base:20180206'
+
+    docker logs hsqldb
+
+    waitlog 'hsqldb' 'OKGO'
+
+    docker exec \
+        --tty \
+        --interactive \
+        'hsqldb' \
+        'hsqldb-client'
+
+
+
+# -------------------------------------------------------------------------------------------
+# Test our HSQLDB container.
+#[user@virtual]
+
+    docker run \
+        --detach \
+        --name 'hsqldb' \
+       'cosmopterix/hsqldb-test:20180206'
+
+    waitlog 'hsqldb' 'OKGO'
+
+    docker exec \
+        --tty \
+        --interactive \
+        'hsqldb' \
+        'hsqldb-client'
+
+        SELECT
+            id,
+            rand()
+        FROM
+            alpha_source            
+        ORDER BY
+            id
+        LIMIT
+            4
+            ;
+
+            --  --------------------
+             0  0.6623962115120128E0
+             1  0.8030032795194834E0
+             2  0.9352720599321164E0
+             3  0.8691097829027409E0
+
+        SELECT
+            id,
+            rand(2)
+        FROM
+            alpha_source            
+        ORDER BY
+            id
+        LIMIT
+            4
+            ;
+
+            --  ---------------------
+             0   0.7311469360199058E0
+             1   0.9014476240300544E0
+             2  0.49682259343089075E0
+             3   0.9858769332362016E0
+        
+        SELECT
+            id,
+            rand(id)
+        FROM
+            alpha_source            
+        ORDER BY
+            id
+        LIMIT
+            4
+            ;
+
+            --  --------------------
+             0   0.730967787376657E0
+             1  0.7308781907032909E0
+             2  0.7311469360199058E0
+             3   0.731057369148862E0
+
+        SELECT
+            MOD(id,2),
+            rand(MOD(id,2))
+        FROM
+            alpha_source            
+        ORDER BY
+            id
+        LIMIT
+            4
+            ;
+
+            --  --------------------
+             0   0.730967787376657E0
+             1  0.7308781907032909E0
+             0   0.730967787376657E0
+             1  0.7308781907032909E0
+
+
+

@@ -15,12 +15,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-FROM cosmopterix/fedora:26-1.2
+FROM cosmopterix/fedora:20180206
 MAINTAINER Dave Morris <docker-admin@metagrid.co.uk>
 
 #
 # MariaDB version
-ENV mariaversion 10.2
+ENV mariaversion 10.2.12
 
 #
 # Default port number.
