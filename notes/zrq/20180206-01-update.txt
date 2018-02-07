@@ -28,7 +28,7 @@
     then
         cat > "${HOME:?}/cosmopterix.settings" << EOF
 COSMOPTERIX_HOME=${HOME:?}/cosmopterix
-COSMOPTERIX_CODE=\${COSMOPTERIX_HOME:?}/github
+COSMOPTERIX_CODE=\${COSMOPTERIX_HOME:?}/github.zrq
 EOF
     fi
 
@@ -125,69 +125,14 @@ EOF
             4
             ;
 
-             id |      random       
-            ----+-------------------
-              1 | 0.601305630523711
-              2 | 0.433082926552743
-              3 | 0.244578152894974
-              4 | 0.897240059450269
+             id |       random       
+            ----+--------------------
+              1 |   0.37916271854192
+              2 |  0.604296837933362
+              3 |  0.062337483279407
+              4 | 0.0407298766076565
 
-        SELECT
-            id,
-            setseed(0.2),
-            random()
-        FROM
-            alpha_source            
-        ORDER BY
-            id
-        LIMIT
-            4
-            ;
-
-             id | setseed |      random       
-            ----+---------+-------------------
-              1 |         | 0.836311135906726
-              2 |         | 0.836311135906726
-              3 |         | 0.836311135906726
-              4 |         | 0.836311135906726
-        
-        SELECT
-            id * 0.1,
-            setseed(id * 0.1),
-            random()
-        FROM
-            alpha_source            
-        ORDER BY
-            id
-        LIMIT
-            4
-            ;
-
-             ?column? | setseed |      random       
-            ----------+---------+-------------------
-                  0.1 |         | 0.727818949148059
-                  0.2 |         | 0.836311135906726
-                  0.3 |         | 0.939957889728248
-                  0.4 |         | 0.687135810498148
-
-        SELECT
-            (id % 2) * 0.1,
-            setseed((id % 2) * 0.1),
-            random()
-        FROM
-            alpha_source            
-        ORDER BY
-            id
-        LIMIT
-            4
-            ;
-
-             ?column? | setseed |      random       
-            ----------+---------+-------------------
-                  0.1 |         | 0.727818949148059
-                  0.0 |         | 0.840187716763467
-                  0.1 |         | 0.727818949148059
-                  0.0 |         | 0.840187716763467
+        \q
 
 # -----------------------------------------------------
 # Update our MySQL images.
@@ -231,8 +176,6 @@ EOF
         'mysql' \
         'mysql-client'
 
-
-
     #
     # Still fails.
     # Configuring admin account [root]
@@ -242,6 +185,11 @@ EOF
     #
     # Probable cause
     # https://planet.mysql.com/entry/?id=5989901
+    #
+
+    #
+    # Possible clues to help fix.
+    # https://github.com/sclorg/mysql-container/blob/master/root-common/usr/bin/run-mysqld
     #
 
 # -----------------------------------------------------
@@ -306,75 +254,17 @@ EOF
             4
             ;
 
-            +----+--------------------+
-            | id | rand()             |
-            +----+--------------------+
-            |  1 | 0.3638790076262122 |
-            |  2 | 0.8170173967415629 |
-            |  3 | 0.9934499915628229 |
-            |  4 | 0.5161977983230704 |
-            +----+--------------------+
+            +----+---------------------+
+            | id | rand()              |
+            +----+---------------------+
+            |  1 |  0.7985201150165127 |
+            |  2 |  0.7290922223861257 |
+            |  3 | 0.24990079761473535 |
+            |  4 | 0.06222735164894476 |
+            +----+---------------------+
 
-        SELECT
-            id,
-            rand(2)
-        FROM
-            alpha_source            
-        ORDER BY
-            id
-        LIMIT
-            4
-            ;
-
-            +----+---------------------+
-            | id | rand(2)             |
-            +----+---------------------+
-            |  1 |  0.6555866465490187 |
-            |  2 | 0.12234661925802624 |
-            |  3 |    0.64497318737672 |
-            |  4 |  0.8578261098431667 |
-            +----+---------------------+
+        \q
         
-        SELECT
-            id,
-            rand(id)
-        FROM
-            alpha_source            
-        ORDER BY
-            id
-        LIMIT
-            4
-            ;
-
-            +----+---------------------+
-            | id | rand(id)            |
-            +----+---------------------+
-            |  1 | 0.40540353712197724 |
-            |  2 |  0.6555866465490187 |
-            |  3 |  0.9057697559760601 |
-            |  4 | 0.15595286540310166 |
-            +----+---------------------+
-
-        SELECT
-            id % 2,
-            rand(id % 2)
-        FROM
-            alpha_source            
-        ORDER BY
-            id
-        LIMIT
-            4
-            ;
-
-            +--------+---------------------+
-            | id % 2 | rand(id % 2)        |
-            +--------+---------------------+
-            |      1 | 0.40540353712197724 |
-            |      0 | 0.15522042769493574 |
-            |      1 | 0.40540353712197724 |
-            |      0 | 0.15522042769493574 |
-            +--------+---------------------+
-
 # -----------------------------------------------------
 # Update our Derby images.
 #[user@virtual]
@@ -440,60 +330,6 @@ EOF
             3          |0.9712503399435956      
             4          |0.45863690322953377     
 
-        SELECT
-            id,
-            rand(2)
-        FROM
-            alpha_source            
-        ORDER BY
-            id
-        FETCH FIRST
-            4
-        ROWS ONLY
-            ;
-                    
-            ------------------------------------
-            1          |0.7311469360199058      
-            2          |0.7311469360199058      
-            3          |0.7311469360199058      
-            4          |0.7311469360199058      
-
-        SELECT
-            id,
-            rand(id)
-        FROM
-            alpha_source            
-        ORDER BY
-            id
-        FETCH FIRST
-            4
-        ROWS ONLY
-            ;
-                    
-            ------------------------------------
-            1          |0.7308781907032909      
-            2          |0.7311469360199058      
-            3          |0.731057369148862       
-            4          |0.7306094602878371      
-
-        SELECT
-            MOD(id,2),
-            rand(MOD(id,2))
-        FROM
-            alpha_source            
-        ORDER BY
-            id
-        FETCH FIRST
-            4
-        ROWS ONLY
-            ;
-                     
-            ------------------------------------
-            1          |0.7308781907032909      
-            0          |0.730967787376657       
-            1          |0.7308781907032909      
-            0          |0.730967787376657       
-
 
 # -----------------------------------------------------
 # Update our HSQLDB images.
@@ -524,27 +360,44 @@ EOF
 # Test our HSQLDB in-memory database.
 #[user@virtual]
 
-    docker rm -f hsqldb
-
-    reset
-    
     docker run \
         --detach \
-        --name 'hsqldb' \
+        --name 'hsqldb-mem' \
         --env 'servertype=mem' \
-       'cosmopterix/hsqldb-base:20180206'
+       'cosmopterix/hsqldb-test:20180206'
 
-    docker logs hsqldb
-
-    waitlog 'hsqldb' 'OKGO'
+    waitlog 'hsqldb-mem' 'OKGO'
 
     docker exec \
         --tty \
         --interactive \
-        'hsqldb' \
+        'hsqldb-mem' \
         'hsqldb-client'
 
+        --
+        -- Load our test data
+        \i /database.init/alpha-source.sql
 
+
+        SELECT
+            id,
+            rand()
+        FROM
+            alpha_source            
+        ORDER BY
+            id
+        LIMIT
+            4
+            ;
+
+            --  --------------------
+             0  0.6366858296380388E0
+             1   0.830028533297709E0
+             2  0.7905198683589413E0
+             3  0.8398019225440426E0
+
+
+        Ctrl^C
 
 # -------------------------------------------------------------------------------------------
 # Test our HSQLDB container.
@@ -574,62 +427,72 @@ EOF
             4
             ;
 
-            --  --------------------
-             0  0.6623962115120128E0
-             1  0.8030032795194834E0
-             2  0.9352720599321164E0
-             3  0.8691097829027409E0
-
-        SELECT
-            id,
-            rand(2)
-        FROM
-            alpha_source            
-        ORDER BY
-            id
-        LIMIT
-            4
-            ;
-
             --  ---------------------
-             0   0.7311469360199058E0
-             1   0.9014476240300544E0
-             2  0.49682259343089075E0
-             3   0.9858769332362016E0
-        
-        SELECT
-            id,
-            rand(id)
-        FROM
-            alpha_source            
-        ORDER BY
-            id
-        LIMIT
-            4
-            ;
+             0  0.49606534257424617E0
+             1   0.6112331754696813E0
+             2   0.7388564358392851E0
+             3    0.909650613305332E0
 
-            --  --------------------
-             0   0.730967787376657E0
-             1  0.7308781907032909E0
-             2  0.7311469360199058E0
-             3   0.731057369148862E0
 
-        SELECT
-            MOD(id,2),
-            rand(MOD(id,2))
-        FROM
-            alpha_source            
-        ORDER BY
-            id
-        LIMIT
-            4
-            ;
+        Ctrl^C
 
-            --  --------------------
-             0   0.730967787376657E0
-             1  0.7308781907032909E0
-             0   0.730967787376657E0
-             1  0.7308781907032909E0
+# -----------------------------------------------------
+# Push our new images.
+#[user@virtual]
+
+    source "${HOME}/secret.sh"
+
+    docker login \
+        --username $(secret docker.io.user) \
+        --password $(secret docker.io.pass)
+
+    docker push "cosmopterix/fedora:latest"
+    docker push "cosmopterix/fedora:${buildtag:?}"
+
+    docker push "cosmopterix/java:latest"
+    docker push "cosmopterix/java:${buildtag:?}"
+
+
+    docker push "cosmopterix/hsqldb:latest"
+    docker push "cosmopterix/hsqldb:${buildtag:?}"
+
+    docker push "cosmopterix/hsqldb-base:latest"
+    docker push "cosmopterix/hsqldb-base:${buildtag:?}"
+
+    docker push "cosmopterix/hsqldb-test:latest"
+    docker push "cosmopterix/hsqldb-test:${buildtag:?}"
+
+
+    docker push "cosmopterix/derby:latest"
+    docker push "cosmopterix/derby:${buildtag:?}"
+
+    docker push "cosmopterix/derby-base:latest"
+    docker push "cosmopterix/derby-base:${buildtag:?}"
+
+    docker push "cosmopterix/derby-test:latest"
+    docker push "cosmopterix/derby-test:${buildtag:?}"
+
+
+    docker push "cosmopterix/pgsql:latest"
+    docker push "cosmopterix/pgsql:${buildtag:?}"
+
+    docker push "cosmopterix/pgsql-base:latest"
+    docker push "cosmopterix/pgsql-base:${buildtag:?}"
+
+    docker push "cosmopterix/pgsql-test:latest"
+    docker push "cosmopterix/pgsql-test:${buildtag:?}"
+
+
+    docker push "cosmopterix/mariadb:latest"
+    docker push "cosmopterix/mariadb:${buildtag:?}"
+
+    docker push "cosmopterix/mariadb-base:latest"
+    docker push "cosmopterix/mariadb-base:${buildtag:?}"
+
+    docker push "cosmopterix/mariadb-test:latest"
+    docker push "cosmopterix/mariadb-test:${buildtag:?}"
+
+
 
 
 
