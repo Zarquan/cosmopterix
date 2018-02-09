@@ -1,0 +1,174 @@
+#
+# <meta:header>
+#   <meta:licence>
+#     Copyright (c) 2018, ROE (http://www.roe.ac.uk/)
+#
+#     This information is free software: you can redistribute it and/or modify
+#     it under the terms of the GNU General Public License as published by
+#     the Free Software Foundation, either version 3 of the License, or
+#     (at your option) any later version.
+#
+#     This information is distributed in the hope that it will be useful,
+#     but WITHOUT ANY WARRANTY; without even the implied warranty of
+#     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#     GNU General Public License for more details.
+#  
+#     You should have received a copy of the GNU General Public License
+#     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#   </meta:licence>
+# </meta:header>
+#
+#
+
+    #
+    # HSQLDB hits memory limits
+    # Tweak the Java opts to give access to more of the available memoey
+
+
+    #
+    # Sanity check on passing bash params as a string.
+    testfn()
+        {
+        echo "1 [${1}]"
+        echo "2 [${2}]"
+        echo "3 [${3}]"
+        }
+
+    testfn alpha
+
+    testfn alpha beta
+
+    testfn alpha beta delta
+
+    fnopts="alpha beta"
+
+    testfn ${fnopts} delta
+
+    testfn "${fnopts}" delta
+
+
+    #
+    # Trim function for options and params ..
+    trim()
+        {
+        sed '
+            s/^[[:space:]]*//
+            s/[[:space:]]*$//
+            ' <<< ${1}
+        }
+
+    echo "[$(trim)]"
+    echo "[$(trim '')]"
+    echo "[$(trim $none)]"
+
+    echo "[$(trim 'alpha')]"
+
+    echo "[$(trim ' alpha')]"
+    echo "[$(trim '  alpha')]"
+
+    echo "[$(trim 'alpha ')]"
+    echo "[$(trim 'alpha  ')]"
+
+    echo "[$(trim ' alpha ')]"
+    echo "[$(trim '  alpha  ')]"
+
+
+    #
+    # Added Java opts to the HSQLDB container.
+
+
+
+# -----------------------------------------------------
+# Update our HSQLDB images.
+#[user@virtual]
+
+    buildtag=20180208
+
+    source "${HOME:?}/cosmopterix.settings"
+    pushd "${COSMOPTERIX_CODE:?}"
+
+        pushd docker
+
+            docker build \
+                --tag "cosmopterix/hsqldb:latest" \
+                --tag "cosmopterix/hsqldb:${buildtag:?}" \
+                --tag "cosmopterix/hsqldb-base:latest" \
+                --tag "cosmopterix/hsqldb-base:${buildtag:?}" \
+                hsqldb/base
+
+            docker build \
+                --tag "cosmopterix/hsqldb-test:latest" \
+                --tag "cosmopterix/hsqldb-test:${buildtag:?}" \
+                hsqldb/test
+
+        popd
+    popd
+
+# -------------------------------------------------------------------------------------------
+# Test our HSQLDB in-memory database.
+#[user@virtual]
+
+    docker rm -f 'hsqldb-mem'
+
+    docker run \
+        --detach \
+        --name 'hsqldb-mem' \
+        --env 'servertype=mem' \
+       "cosmopterix/hsqldb-test:${buildtag:?}"
+
+    docker logs 'hsqldb-mem'
+
+    docker exec \
+        --tty \
+        --interactive \
+        'hsqldb-mem' \
+        'hsqldb-client'
+
+        --
+        -- Load our test data
+        \i /database.init/alpha-source.sql
+
+
+# -----------------------------------------------------
+
+
+    #
+    # User defined functions ...
+
+        CREATE FUNCTION testmaxmem() RETURNS INTEGER
+            LANGUAGE JAVA DETERMINISTIC NO SQL
+            EXTERNAL NAME 'CLASSPATH:java.lang.Runtime'
+            Runtime.getRuntime().maxMemory()
+            .
+            :;
+
+        CREATE PROCEDURE get_customer(IN id INT, OUT firstname VARCHAR(50), OUT lastname VARCHAR(50)) 
+           READS SQL DATA
+           LANGUAGE JAVA
+           EXTERNAL NAME 'CLASSPATH:org.hsqldb.test.Test01.getCustomerProcedure'
+
+           public static void getCustomerProcedure(int id, String[] firstn, String[] lastn)
+               throws java.sql.SQLException {
+               firstn[0] = somevalue;  // parameter out value is assigned
+               lastn[0] = somevalue;   // parameter out value is assigned
+           }
+   
+# -----------------------------------------------------
+# Push our new images.
+#[user@virtual]
+
+    source "${HOME}/secret.sh"
+
+    docker login \
+        --username $(secret docker.io.user) \
+        --password $(secret docker.io.pass)
+
+    docker push "cosmopterix/hsqldb:latest"
+    docker push "cosmopterix/hsqldb:${buildtag:?}"
+
+    docker push "cosmopterix/hsqldb-base:latest"
+    docker push "cosmopterix/hsqldb-base:${buildtag:?}"
+
+    docker push "cosmopterix/hsqldb-test:latest"
+    docker push "cosmopterix/hsqldb-test:${buildtag:?}"
+
