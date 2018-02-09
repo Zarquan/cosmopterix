@@ -24,6 +24,16 @@ set -euo pipefail
 IFS=$'\n\t'
 
 #
+# Trim function for options and params ..
+trim()
+    {
+    sed '
+        s/^[[:space:]]*//
+        s/[[:space:]]*$//
+        ' <<< ${1:-}
+    }
+
+#
 # Install directory
 : ${servercode:=/usr/lib/hsqldb}
 hsqldbdir=${servercode}/hsqldb-${hsqldbversion}/hsqldb
@@ -75,6 +85,19 @@ fi
 # Saved configuration.
 cat > "${databasesave}" << EOF
 #
+# Java configuration
+javaopt=${javaopt:-}
+javaxms=${javaxms:-}
+javaxmn=${javaxmn:-}
+javaxmx=${javaxmx:-}
+
+#
+# Admin settings
+admindata=${admindata}
+adminuser=${adminuser}
+adminpass=${adminpass}
+
+#
 # System settings
 servertype=${servertype}
 serveruser=${serveruser}
@@ -94,6 +117,26 @@ databasename=${databasename}
 databaseuser=${databaseuser}
 databasepass=${databasepass}
 EOF
+
+#
+# Java memory configuration.
+# https://alvinalexander.com/blog/post/java/java-xmx-xms-memory-heap-size-control#java-heap-size-descriptions-xms-xmx-xmn
+javaoptions="${javaopt:-}"
+
+if [ -n "${javaxms:-}" ]
+then
+    javaoptions="${javaoptions} -Xms${javaxms}"
+fi
+if [ -n "${javaxmn:-}" ]
+then
+    javaoptions="${javaoptions} -Xmn${javaxmn}"
+fi
+if [ -n "${javaxmx:-}" ]
+then
+    javaoptions="${javaoptions} -Xmx${javaxmx}"
+fi
+
+javaoptions=$(trim ${javaoptions})
 
 #
 # Start database server.
@@ -165,6 +208,7 @@ EOF
                 echo "Creating database [${databasename}]"
                 gosu ${serveruser} \
                     java \
+                        ${javaoptions} \
                         -classpath ${hsqldblib} \
                         -jar ${hsqldblib}/sqltool.jar \
                         --sql '' \
@@ -176,6 +220,7 @@ EOF
             # SQLtool command
             toolcmd=( gosu "${serveruser}" )
             toolcmd+=( java )
+            toolcmd+=( ${javaoptions} )
             toolcmd+=( -classpath "${hsqldblib}" )
             toolcmd+=( -jar ${hsqldblib}/sqltool.jar )
             toolcmd+=( --autoCommit )
@@ -237,9 +282,11 @@ EOF
 
     echo ""
     echo "Starting database service"
+    echo "Java options [${javaoptions}]"
     echo "OKGO"
     exec gosu "${serveruser}" \
         java \
+        ${javaoptions} \
         -classpath ${hsqldblib}/hsqldb.jar \
         org.hsqldb.server.Server \
         --props ${serverdata}/server.properties\
