@@ -1,0 +1,364 @@
+#
+# <meta:header>
+#   <meta:licence>
+#     Copyright (c) 2018, ROE (http://www.roe.ac.uk/)
+#
+#     This information is free software: you can redistribute it and/or modify
+#     it under the terms of the GNU General Public License as published by
+#     the Free Software Foundation, either version 3 of the License, or
+#     (at your option) any later version.
+#
+#     This information is distributed in the hope that it will be useful,
+#     but WITHOUT ANY WARRANTY; without even the implied warranty of
+#     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#     GNU General Public License for more details.
+#  
+#     You should have received a copy of the GNU General Public License
+#     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#   </meta:licence>
+# </meta:header>
+#
+#
+
+# -----------------------------------------------------
+# Create our local settings.
+#[user@desktop]
+
+    if [ ! -e "${HOME:?}/cosmopterix.settings" ]
+    then
+        cat > "${HOME:?}/cosmopterix.settings" << EOF
+COSMOPTERIX_HOME=${HOME:?}/cosmopterix
+COSMOPTERIX_CODE=\${COSMOPTERIX_HOME:?}/github.zrq
+EOF
+    fi
+
+# -----------------------------------------------------
+# Remove existing containers and images.
+#[user@desktop]
+
+    docker rm -v $(docker stop $(docker ps -aq))
+
+    docker rmi -f $(docker images -q)
+
+# -------------------------------------------------------------------------------------------
+# Create our 'waitlog' function.
+#[user@desktop]
+
+    waitlog()
+        {
+        local name=${1:?Name required}
+        local text=${2:?Text required}
+        sed -r '/'${text}'/q' <( exec docker logs --follow "${name}" ); kill $! 2> /dev/null
+        }
+
+# -----------------------------------------------------
+# Update our Fedora image.
+#[user@laptop]
+
+    buildtag=20180208
+
+    source "${HOME:?}/cosmopterix.settings"
+    pushd "${COSMOPTERIX_CODE:?}"
+
+        pushd docker
+            docker build \
+                --tag "cosmopterix/fedora:latest" \
+                --tag "cosmopterix/fedora:${buildtag:?}" \
+                fedora
+
+        popd
+    popd
+
+# -----------------------------------------------------
+# Update our Java image.
+#[user@virtual]
+
+    source "${HOME:?}/cosmopterix.settings"
+    pushd "${COSMOPTERIX_CODE:?}"
+
+        pushd docker
+
+            docker build \
+                --tag "cosmopterix/java:latest" \
+                --tag "cosmopterix/java:${buildtag:?}" \
+                java
+
+        popd
+    popd
+
+# -----------------------------------------------------
+# Update our PostgreSQL images.
+#[user@desktop]
+
+    source "${HOME:?}/cosmopterix.settings"
+    pushd "${COSMOPTERIX_CODE:?}"
+
+        pushd docker
+
+            docker build \
+                --tag "cosmopterix/pgsql:latest" \
+                --tag "cosmopterix/pgsql:${buildtag:?}" \
+                --tag "cosmopterix/pgsql-base:latest" \
+                --tag "cosmopterix/pgsql-base:${buildtag:?}" \
+                pgsql/base
+
+            docker build \
+                --tag "cosmopterix/pgsql-test:latest" \
+                --tag "cosmopterix/pgsql-test:${buildtag:?}" \
+                pgsql/test
+
+        popd
+    popd
+
+# -------------------------------------------------------------------------------------------
+# Test our PostgreSQL container.
+#[user@desktop]
+
+    docker run \
+        --detach \
+        --name 'pgsql' \
+       "cosmopterix/pgsql-test:${buildtag:?}"
+
+    waitlog 'pgsql' 'OKGO'
+
+    docker exec \
+        --tty \
+        --interactive \
+        'pgsql' \
+        'pgsql-client'
+
+        SELECT version() ;
+
+            PostgreSQL 9.6.6 on x86_64-redhat-linux-gnu, compiled by gcc (GCC) 7.2.1 20170915 (Red Hat 7.2.1-2), 64-bit
+
+        \q
+
+# -----------------------------------------------------
+# Update our Mariadb images.
+#[user@desktop]
+
+    source "${HOME:?}/cosmopterix.settings"
+    pushd "${COSMOPTERIX_CODE:?}"
+
+        pushd docker
+
+            docker build \
+                --tag "cosmopterix/mariadb:latest" \
+                --tag "cosmopterix/mariadb:${buildtag:?}" \
+                --tag "cosmopterix/mariadb-base:latest" \
+                --tag "cosmopterix/mariadb-base:${buildtag:?}" \
+                mariadb/base
+
+            docker build \
+                --tag "cosmopterix/mariadb-test:latest" \
+                --tag "cosmopterix/mariadb-test:${buildtag:?}" \
+                mariadb/test
+
+        popd
+    popd
+
+# -------------------------------------------------------------------------------------------
+# Test our Mariadb container.
+#[user@desktop]
+
+    docker run \
+        --detach \
+        --name 'mariadb' \
+       'cosmopterix/mariadb-test:${buildtag:?}'
+
+    waitlog 'mariadb' 'OKGO'
+
+    docker exec \
+        --tty \
+        --interactive \
+        'mariadb' \
+        'mariadb-client'
+
+        SELECT
+            version()
+            ;
+
+            +-----------------+
+            | version()       |
+            +-----------------+
+            | 10.2.12-MariaDB |
+            +-----------------+
+
+        \q
+        
+# -----------------------------------------------------
+# Update our Derby images.
+#[user@virtual]
+
+    source "${HOME:?}/cosmopterix.settings"
+    pushd "${COSMOPTERIX_CODE:?}"
+
+        pushd docker
+
+            docker build \
+                --tag "cosmopterix/derby:latest" \
+                --tag "cosmopterix/derby:${buildtag:?}" \
+                --tag "cosmopterix/derby-base:latest" \
+                --tag "cosmopterix/derby-base:${buildtag:?}" \
+                derby/base
+
+            docker build \
+                --tag "cosmopterix/derby-test:latest" \
+                --tag "cosmopterix/derby-test:${buildtag:?}" \
+                derby/test
+
+        popd
+    popd
+
+# -------------------------------------------------------------------------------------------
+# Test our Derby container.
+#[user@virtual]
+
+    docker run \
+        --detach \
+        --name 'derby' \
+       'cosmopterix/derby-test:${buildtag:?}'
+
+    waitlog 'derby' 'OKGO'
+
+    docker exec \
+        --tty \
+        --interactive \
+        'derby' \
+        'derby-client'
+
+
+
+
+# -----------------------------------------------------
+# Update our HSQLDB images.
+#[user@virtual]
+
+    source "${HOME:?}/cosmopterix.settings"
+    pushd "${COSMOPTERIX_CODE:?}"
+
+        pushd docker
+
+            docker build \
+                --tag "cosmopterix/hsqldb:latest" \
+                --tag "cosmopterix/hsqldb-base:${buildtag:?}" \
+                --tag "cosmopterix/hsqldb-base:latest" \
+                --tag "cosmopterix/hsqldb-base:${buildtag:?}" \
+                hsqldb/base
+
+            docker build \
+                --tag "cosmopterix/hsqldb-test:latest" \
+                --tag "cosmopterix/hsqldb-test:${buildtag:?}" \
+                hsqldb/test
+
+        popd
+    popd
+
+
+# -------------------------------------------------------------------------------------------
+# Test our HSQLDB in-memory database.
+#[user@virtual]
+
+    docker run \
+        --detach \
+        --name 'hsqldb-mem' \
+        --env 'servertype=mem' \
+       'cosmopterix/hsqldb-test:${buildtag:?}'
+
+    waitlog 'hsqldb-mem' 'OKGO'
+
+    docker exec \
+        --tty \
+        --interactive \
+        'hsqldb-mem' \
+        'hsqldb-client'
+
+        --
+        -- Load our test data
+        \i /database.init/alpha-source.sql
+
+
+
+
+        Ctrl^C
+
+# -------------------------------------------------------------------------------------------
+# Test our HSQLDB container.
+#[user@virtual]
+
+    docker run \
+        --detach \
+        --name 'hsqldb' \
+       'cosmopterix/hsqldb-test:${buildtag:?}'
+
+    waitlog 'hsqldb' 'OKGO'
+
+    docker exec \
+        --tty \
+        --interactive \
+        'hsqldb' \
+        'hsqldb-client'
+
+
+
+        Ctrl^C
+
+# -----------------------------------------------------
+# Push our new images.
+#[user@virtual]
+
+    source "${HOME}/secret.sh"
+
+    docker login \
+        --username $(secret docker.io.user) \
+        --password $(secret docker.io.pass)
+
+    docker push "cosmopterix/fedora:latest"
+    docker push "cosmopterix/fedora:${buildtag:?}"
+
+    docker push "cosmopterix/java:latest"
+    docker push "cosmopterix/java:${buildtag:?}"
+
+    docker push "cosmopterix/hsqldb:latest"
+    docker push "cosmopterix/hsqldb:${buildtag:?}"
+
+    docker push "cosmopterix/hsqldb-base:latest"
+    docker push "cosmopterix/hsqldb-base:${buildtag:?}"
+
+    docker push "cosmopterix/hsqldb-test:latest"
+    docker push "cosmopterix/hsqldb-test:${buildtag:?}"
+
+
+    docker push "cosmopterix/derby:latest"
+    docker push "cosmopterix/derby:${buildtag:?}"
+
+    docker push "cosmopterix/derby-base:latest"
+    docker push "cosmopterix/derby-base:${buildtag:?}"
+
+    docker push "cosmopterix/derby-test:latest"
+    docker push "cosmopterix/derby-test:${buildtag:?}"
+
+
+    docker push "cosmopterix/pgsql:latest"
+    docker push "cosmopterix/pgsql:${buildtag:?}"
+
+    docker push "cosmopterix/pgsql-base:latest"
+    docker push "cosmopterix/pgsql-base:${buildtag:?}"
+
+    docker push "cosmopterix/pgsql-test:latest"
+    docker push "cosmopterix/pgsql-test:${buildtag:?}"
+
+
+    docker push "cosmopterix/mariadb:latest"
+    docker push "cosmopterix/mariadb:${buildtag:?}"
+
+    docker push "cosmopterix/mariadb-base:latest"
+    docker push "cosmopterix/mariadb-base:${buildtag:?}"
+
+    docker push "cosmopterix/mariadb-test:latest"
+    docker push "cosmopterix/mariadb-test:${buildtag:?}"
+
+
+
+
+

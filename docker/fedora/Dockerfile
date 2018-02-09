@@ -43,6 +43,12 @@ RUN dnf install -y gnupg
 RUN dnf install -y which
 
 #
+# System debugging tools.
+RUN dnf install -y iputils
+RUN dnf install -y procps-ng
+RUN dnf install -y bind-utils
+
+#
 # Install dnf admin tools.
 RUN dnf install -y dnf-plugins-core
 
